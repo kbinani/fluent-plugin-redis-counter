@@ -16,7 +16,7 @@ fluent-plugin-redis-counter is a fluent plugin to count-up/down redis keys.
 
 # Example
 
-- put a conf, "fluent.conf" like this:
+prepare a conf file ("fluent.conf") in current directory like this:
 
     <source>
       type forward
@@ -28,7 +28,7 @@ fluent-plugin-redis-counter is a fluent plugin to count-up/down redis keys.
       db_number 0
     </match>
 
-- execute test commands:
+run commands for test:
 
     $redis-server 2>&1 >/dev/null &
     [1] 879
@@ -38,8 +38,8 @@ fluent-plugin-redis-counter is a fluent plugin to count-up/down redis keys.
     redis 127.0.0.1:6379>exit
     $fluentd -c ./fluent.conf 2>&1 >/dev/null &
     [2] 889
-    $echo {\"foo\":1} | fluent-cat debug
-    $echo {\"foo\":2} | fluent-cat debug
+    $echo {\"foo\":5} | fluent-cat debug
+    $echo {\"foo\":-2} | fluent-cat debug
     $kill 889
     $redis-cli
     redis 127.0.0.1:6379>get foo
