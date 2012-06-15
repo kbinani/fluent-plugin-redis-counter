@@ -11,21 +11,17 @@ module Fluent
 
     def configure(conf)
       super
-
       @host = conf.has_key?('host') ? conf['host'] : 'localhost'
       @port = conf.has_key?('port') ? conf['port'].to_i : 6379
       @db_number = conf.has_key?('db_number') ? conf['db_number'].to_i : nil
-
-      if conf.has_key?('namespace')
-        $log.warn "namespace option has been removed from fluent-plugin-redis 0.1.3. Please add or remove the namespace '#{conf['namespace']}' manually."
-      end
     end
 
     def start
       super
-
-      @redis = Redis.new(:host => @host, :port => @port,
-                         :thread_safe => true, :db => @db_number)
+      @redis = Redis.new(
+        :host => @host, :port => @port,
+        :thread_safe => true, :db => @db_number
+      )
     end
 
     def shutdown
