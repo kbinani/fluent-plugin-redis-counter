@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.authors     = ["Buntaro Okada"]
   s.date        = %q{2012-06-15}
   s.email       = "kbinani.bt@gmail.com"
-  s.homepage    = "https://github.com/kbinani/fluent-plugin-redis"
+  s.homepage    = "https://github.com/kbinani/fluent-plugin-redis-counter"
   s.summary     = "Redis counter plugin for fluent"
 
   s.files         = `git ls-files`.split("\n")
