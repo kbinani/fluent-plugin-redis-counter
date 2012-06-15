@@ -3,6 +3,7 @@ require 'fluent/test'
 class RedisCounterTest < Test::Unit::TestCase
   def setup
     Fluent::Test.setup
+    require 'fluent/plugin/out_redis_counter'
 
     @d = create_driver %[
       host localhost
