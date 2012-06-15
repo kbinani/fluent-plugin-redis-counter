@@ -1,4 +1,4 @@
 source "http://rubygems.org"
 
-# Specify your gem's dependencies in fluent-plugin-redis.gemspec
+# Specify your gem's dependencies in fluent-plugin-redis-counter.gemspec
 gemspec

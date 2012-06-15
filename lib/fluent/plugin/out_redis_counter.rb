@@ -1,6 +1,6 @@
 module Fluent
-  class RedisOutput < BufferedOutput
-    Fluent::Plugin.register_output('redis', self)
+  class RedisCounterOutput < BufferedOutput
+    Fluent::Plugin.register_output('redis_counter', self)
     attr_reader :host, :port, :db_number, :redis
 
     def initialize
@@ -33,21 +33,27 @@ module Fluent
     end
 
     def format(tag, time, record)
-      identifier = [tag, time].join(".")
-      [identifier, record].to_msgpack
+      record.to_msgpack
     end
 
     def write(chunk)
-      @redis.pipelined {
-        chunk.open { |io|
-          begin
-            MessagePack::Unpacker.new(io).each.each_with_index { |record, index|
-              @redis.mapped_hmset "#{record[0]}.#{index}", record[1]
+      table = {}
+      table.default = 0
+      chunk.open { |io|
+        begin
+          MessagePack::Unpacker.new(io).each { |record|
+            record.each_key { |key|
+              if (value = record[key].to_i) != 0
+                table[key] += value
+              end
             }
-          rescue EOFError
-            # EOFError always occured when reached end of chunk.
-          end
-        }
+          }
+        rescue EOFError
+          # EOFError always occured when reached end of chunk.
+        end
+      }
+      table.each_key { |key|
+        @redis.incrby(key, table[key])
       }
     end
   end
