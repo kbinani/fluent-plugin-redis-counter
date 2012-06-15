@@ -40,7 +40,7 @@ run commands for test:
     [2] 889
     $echo {\"foo\":5} | fluent-cat debug
     $echo {\"foo\":-2} | fluent-cat debug
-    $kill 889
+    $kill -s HUP 889
     $redis-cli
     redis 127.0.0.1:6379>get foo
     "3"
