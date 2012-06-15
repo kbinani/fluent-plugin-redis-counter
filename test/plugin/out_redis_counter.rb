@@ -1,6 +1,6 @@
 require 'fluent/test'
 
-class FileOutputTest < Test::Unit::TestCase
+class RedisCounterTest < Test::Unit::TestCase
   def setup
     Fluent::Test.setup
 
@@ -9,11 +9,16 @@ class FileOutputTest < Test::Unit::TestCase
       port 6379
       db_number 1
     ]
-    @time = Time.parse("2011-01-02 13:14:15 UTC").to_i
+    redis = Redis.new(
+      :host => "localhost", :port => 6379,
+      :thread_safe => true, :db => 1
+    )
+    redis.del("a")
+    redis.quit
   end
 
   def create_driver(conf = CONFIG)
-    Fluent::Test::BufferedOutputTestDriver.new(Fluent::RedisOutput).configure(conf)
+    Fluent::Test::BufferedOutputTestDriver.new(Fluent::RedisCounterOutput).configure(conf)
   end
 
   def test_configure
@@ -23,17 +28,18 @@ class FileOutputTest < Test::Unit::TestCase
   end
 
   def test_format
-    @d.emit({"a"=>1}, @time)
-    @d.expect_format(["test.#{@time}", {"a"=>1}].to_msgpack)
+    @d.emit({"a" => 1})
+    @d.expect_format({"a" => 1}.to_msgpack)
     @d.run
   end
 
   def test_write
-    @d.emit({"a"=>2}, @time)
-    @d.emit({"a"=>3}, @time)
+    @d.emit({"a" => 2})
+    @d.emit({"a" => 3})
+    @d.emit({"a" => "foo"})
+    @d.emit({"a" => -1})
     @d.run
 
-    assert_equal "2", @d.instance.redis.hget("test.#{@time}.0", "a")
-    assert_equal "3", @d.instance.redis.hget("test.#{@time}.1", "a")
+    assert_equal "4", @d.instance.redis.get("a")
   end
 end
