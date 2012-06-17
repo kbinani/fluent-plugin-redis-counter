@@ -15,6 +15,7 @@ class RedisCounterTest < Test::Unit::TestCase
       :thread_safe => true, :db => 1
     )
     redis.del("a")
+    redis.del("b")
     redis.quit
   end
 
@@ -38,10 +39,11 @@ class RedisCounterTest < Test::Unit::TestCase
     @d.emit({"a" => 2})
     @d.emit({"a" => 3})
     @d.emit({"a" => "foo"})
-    @d.emit({"a" => -1})
+    @d.emit({"a" => -1, "b" => 1})
     @d.run
 
     assert_equal "4", @d.instance.redis.get("a")
+    assert_equal "1", @d.instance.redis.get("b")
   end
 
   def test_write_with_float
