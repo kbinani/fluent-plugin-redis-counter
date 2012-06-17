@@ -39,14 +39,8 @@ module Fluent
         begin
           MessagePack::Unpacker.new(io).each { |record|
             record.each_key { |key|
-              begin
-                if (value = Integer(record[key])) != 0
-                  table[key] += value
-                end
-              rescue ArgumentError
-                # convert to integer failed, do nothing.
-              rescue TypeError
-                # object can't convert to integer, do nothing.
+              if (value = parseInt(record[key])) != 0
+                table[key] += value
               end
             }
           }
@@ -58,5 +52,16 @@ module Fluent
         @redis.incrby(key, table[key])
       }
     end
+
+    def parseInt(stringValue)
+      begin
+        Integer(stringValue)
+      rescue ArgumentError
+        0
+      rescue TypeError
+        0
+      end
+    end
+
   end
 end
