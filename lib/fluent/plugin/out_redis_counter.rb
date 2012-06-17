@@ -39,8 +39,13 @@ module Fluent
         begin
           MessagePack::Unpacker.new(io).each { |record|
             record.each_key { |key|
-              if (value = record[key].to_i) != 0
-                table[key] += value
+              begin
+                value = Integer(record[key])
+                if value != 0
+                  table[key] += value
+                end
+              rescue ArgumentError
+                # convert to integer failed, do nothing.
               end
             }
           }

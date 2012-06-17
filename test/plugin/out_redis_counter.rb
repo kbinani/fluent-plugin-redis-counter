@@ -43,4 +43,12 @@ class RedisCounterTest < Test::Unit::TestCase
 
     assert_equal "4", @d.instance.redis.get("a")
   end
+
+  def test_write_with_float
+    @d.emit({"a" => "1.1"})
+    @d.emit({"a" => "2"})
+    @d.run
+
+    assert_equal "2", @d.instance.redis.get("a")
+  end
 end
