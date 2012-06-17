@@ -46,6 +46,8 @@ module Fluent
                 end
               rescue ArgumentError
                 # convert to integer failed, do nothing.
+              rescue TypeError
+                # object can't convert to integer, do nothing.
               end
             }
           }

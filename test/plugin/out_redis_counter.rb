@@ -51,4 +51,13 @@ class RedisCounterTest < Test::Unit::TestCase
 
     assert_equal "2", @d.instance.redis.get("a")
   end
+
+  def test_write_with_object
+    @d.emit({"a" => 1})
+    @d.emit({"a" => {"foo" => 1}})
+    @d.run
+
+    assert_equal "1", @d.instance.redis.get("a")
+  end
+
 end
