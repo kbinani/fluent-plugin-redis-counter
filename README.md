@@ -2,6 +2,12 @@
 
 fluent-plugin-redis-counter is a fluent plugin to count-up/down redis keys.
 
+# Installation
+
+fluent-plugin-redis-counter is hosted by [RubyGems.org](https://rubygems.org/).
+
+    $fluent-gem install fluent-plugin-redis-counter
+
 # Configuration
 
     <match redis_counter.**>
@@ -47,8 +53,8 @@ run commands for test:
     redis 127.0.0.1:6379>
 
 # Copyright
-- Copyright(C) 2012 Buntaro Okada
-- Copyright(C) 2011-2012 Yuki Nishijima
+- Copyright © 2012 Buntaro Okada
+- Copyright © 2011-2012 Yuki Nishijima
 
 # License
 - Apache License, Version 2.0
