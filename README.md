@@ -38,19 +38,15 @@ run commands for test:
 
     $redis-server 2>&1 >/dev/null &
     [1] 879
-    $redis-cli
-    redis 127.0.0.1:6379>del foo
+    $echo del foo | redis-cli -h localhost -p 6379 -n 0
     (integer) 0
-    redis 127.0.0.1:6379>exit
     $fluentd -c ./fluent.conf 2>&1 >/dev/null &
     [2] 889
     $echo {\"foo\":5} | fluent-cat debug
     $echo {\"foo\":-2} | fluent-cat debug
     $kill -s HUP 889
-    $redis-cli
-    redis 127.0.0.1:6379>get foo
+    $echo get foo | redis-cli -h localhost -p 6379 -n 0
     "3"
-    redis 127.0.0.1:6379>
 
 # Copyright
 - Copyright © 2012 Buntaro Okada
