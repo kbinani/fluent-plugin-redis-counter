@@ -49,7 +49,9 @@ module Fluent
         end
       }
       table.each_key { |key|
-        @redis.incrby(key, table[key])
+        if (value = table[key]) != 0
+          @redis.incrby(key, value)
+        end
       }
     end
 
