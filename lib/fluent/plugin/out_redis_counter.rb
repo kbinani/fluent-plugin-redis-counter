@@ -40,8 +40,7 @@ module Fluent
           MessagePack::Unpacker.new(io).each { |record|
             record.each_key { |key|
               begin
-                value = Integer(record[key])
-                if value != 0
+                if (value = Integer(record[key])) != 0
                   table[key] += value
                 end
               rescue ArgumentError
