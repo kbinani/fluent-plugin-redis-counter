@@ -1,5 +1,12 @@
 language: ruby
+
 rvm:
   - 1.9.2
   - 1.9.3
+
 script: bundle exec ruby -S -Itest test/plugin/out_redis_counter.rb
+
+branches:
+  only:
+    - master
+    - add-keyname-rule
