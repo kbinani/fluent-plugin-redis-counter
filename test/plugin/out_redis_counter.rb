@@ -95,30 +95,23 @@ class RedisCounterTest < Test::Unit::TestCase
   end
 
   def test_write
-    @d.emit({"a" => 2})
-    @d.emit({"a" => 3})
-    @d.emit({"a" => "foo"})
-    @d.emit({"a" => -1, "b" => 1})
-    @d.run
+    driver = create_driver %[
+      db_number 1
+      <pattern>
+        match_a ^2[0-9][0-9]$
+        count_key a
+        count_value 2
+      </pattern>
+    ]
+    driver.emit({"a" => "value-of-a"})
+    driver.emit({"a" => "200"})
+    driver.emit({"b" => "200"})
+    driver.emit({"aa" => "200"})
+    driver.emit({"a" => "2000"})
+    driver.run
 
-    assert_equal "4", @d.instance.redis.get("a")
-    assert_equal "1", @d.instance.redis.get("b")
-  end
-
-  def test_write_with_float
-    @d.emit({"a" => "1.1"})
-    @d.emit({"a" => "2"})
-    @d.run
-
-    assert_equal "2", @d.instance.redis.get("a")
-  end
-
-  def test_write_with_object
-    @d.emit({"a" => 1})
-    @d.emit({"a" => {"foo" => 1}})
-    @d.run
-
-    assert_equal "1", @d.instance.redis.get("a")
+    assert_equal '2', driver.instance.redis.get("a")
+    assert_nil driver.instance.redis.get("b")
   end
 
 end

@@ -66,11 +66,10 @@ module Fluent
       chunk.open { |io|
         begin
           MessagePack::Unpacker.new(io).each { |record|
-            record.each_key { |key|
-              if (value = parseInt(record[key])) != 0
-                table[key] += value
-              end
-            }
+            matched_pattern = get_matched_pattern(record)
+            if matched_pattern != nil && matched_pattern['count_value'] != 0
+              table[matched_pattern['count_key']] += matched_pattern['count_value']
+            end
           }
         rescue EOFError
           # EOFError always occured when reached end of chunk.
@@ -81,6 +80,27 @@ module Fluent
           @redis.incrby(key, value)
         end
       }
+    end
+
+    def get_matched_pattern(record)
+      @patterns.each { |pattern|
+        all_matched = true
+        pattern['matches'].each_key{ |key|
+          if !record.has_key?(key)
+            all_matched = false
+            break
+          else
+            if !(record[key] =~ Regexp.new(pattern['matches'][key]))
+              all_matched = false
+              break
+            end
+          end
+        }
+        if all_matched
+          return pattern
+        end
+      }
+      return nil
     end
 
     def parseInt(stringValue)
