@@ -102,16 +102,5 @@ module Fluent
       }
       return nil
     end
-
-    def parseInt(stringValue)
-      begin
-        Integer(stringValue)
-      rescue ArgumentError
-        0
-      rescue TypeError
-        0
-      end
-    end
-
   end
 end
