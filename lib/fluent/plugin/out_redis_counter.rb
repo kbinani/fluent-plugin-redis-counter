@@ -1,7 +1,7 @@
 module Fluent
   class RedisCounterOutput < BufferedOutput
     Fluent::Plugin.register_output('redis_counter', self)
-    attr_reader :host, :port, :db_number, :redis
+    attr_reader :host, :port, :db_number, :redis, :patterns
 
     def initialize
       super
@@ -14,6 +14,34 @@ module Fluent
       @host = conf.has_key?('host') ? conf['host'] : 'localhost'
       @port = conf.has_key?('port') ? conf['port'].to_i : 6379
       @db_number = conf.has_key?('db_number') ? conf['db_number'].to_i : nil
+      @patterns = []
+      conf.elements.select { |e|
+        e.name == 'pattern'
+      }.each { |e|
+        if e.has_key?('count_key') == false
+          raise Fluent::ConfigError, '"count_key" is required.'
+        end
+        count_value = 1
+        if e.has_key?('count_value')
+          begin
+            count_value = Integer(e['count_value'])
+          rescue
+            raise Fluent::ConfigError, 'invalid "count_value", integer required.'
+          end
+        end
+        matches = {}
+        e.each_key { |key|
+          if key =~ /^match_/
+            name = key['match_'.size .. key.size]
+            matches[name] = Regexp.new(e[key])
+          end
+        }
+        @patterns << {
+          'matches' => matches,
+          'count_key' => e['count_key'],
+          'count_value' => count_value
+        }
+      }
     end
 
     def start
@@ -38,11 +66,10 @@ module Fluent
       chunk.open { |io|
         begin
           MessagePack::Unpacker.new(io).each { |record|
-            record.each_key { |key|
-              if (value = parseInt(record[key])) != 0
-                table[key] += value
-              end
-            }
+            matched_pattern = get_matched_pattern(record)
+            if matched_pattern != nil && matched_pattern['count_value'] != 0
+              table[matched_pattern['count_key']] += matched_pattern['count_value']
+            end
           }
         rescue EOFError
           # EOFError always occured when reached end of chunk.
@@ -55,15 +82,26 @@ module Fluent
       }
     end
 
-    def parseInt(stringValue)
-      begin
-        Integer(stringValue)
-      rescue ArgumentError
-        0
-      rescue TypeError
-        0
-      end
+    private
+    def get_matched_pattern(record)
+      @patterns.each { |pattern|
+        all_matched = true
+        pattern['matches'].each_key{ |key|
+          if !record.has_key?(key)
+            all_matched = false
+            break
+          else
+            if !(record[key] =~ pattern['matches'][key])
+              all_matched = false
+              break
+            end
+          end
+        }
+        if all_matched
+          return pattern
+        end
+      }
+      return nil
     end
-
   end
 end

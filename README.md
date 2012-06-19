@@ -18,6 +18,16 @@ fluent-plugin-redis-counter is hosted by [RubyGems.org](https://rubygems.org/).
 
       # database number is optional.
       db_number 0        # 0 is default
+
+      # match condition
+      # this pattern matches {"status": "200", "url": "http://foo.example.com"} and then,
+      # increment Redis key "foo-status2xx" by calling Redis::incrby( "foo-status2xx", 1 ).
+      <pattern>
+        match_status ^2[0-9][0-9]$        # matches with {"status": "200", ...
+        match_url ^http:\/\/foo\.         # matches with {"url": "http://foo.example.com", ...
+        count_key foo-status2xx           # key-name for Redis
+        count_value 1                     # count-up amount(default: 1, negative value is allowed)
+      </pattern>
     </match>
 
 # Example
@@ -32,6 +42,11 @@ prepare a conf file ("fluent.conf") in current directory like this:
       host localhost
       port 6379
       db_number 0
+      <pattern>
+        match_status ^2[0-9][0-9]$
+        match_url ^http:\/\/foo\.
+        count_key foo
+      </pattern>
     </match>
 
 run commands for test:
@@ -42,11 +57,11 @@ run commands for test:
     (integer) 0
     $fluentd -c ./fluent.conf 2>&1 >/dev/null &
     [2] 889
-    $echo {\"foo\":5} | fluent-cat debug
-    $echo {\"foo\":-2} | fluent-cat debug
+    $echo {\"status\": \"200\", \"url\": \"http://foo.example.com\"} | fluent-cat debug
+    $echo {\"status\": \"500\", \"url\": \"http://foo.example.com\"} | fluent-cat debug
     $kill -s HUP 889
     $echo get foo | redis-cli -h localhost -p 6379 -n 0
-    "3"
+    "1"
 
 # Copyright
 - Copyright © 2012 Buntaro Okada
