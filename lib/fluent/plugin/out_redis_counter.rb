@@ -15,11 +15,11 @@ module Fluent
       @port = conf.has_key?('port') ? conf['port'].to_i : 6379
       @db_number = conf.has_key?('db_number') ? conf['db_number'].to_i : nil
       @patterns = []
-      conf.elements.select { |e|
-        e.name == 'pattern'
-      }.each { |e|
+      conf.elements.select { |element|
+        element.name == 'pattern'
+      }.each { |element|
         begin
-          @patterns << Pattern.new(e)
+          @patterns << Pattern.new(element)
         rescue RedisCounterException => e
           raise Fluent::ConfigError, e.message
         end
