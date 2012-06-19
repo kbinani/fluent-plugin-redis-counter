@@ -33,7 +33,7 @@ module Fluent
         e.each_key { |key|
           if key =~ /^match_/
             name = key['match_'.size .. key.size]
-            matches[name] = e[key]
+            matches[name] = Regexp.new(e[key])
           end
         }
         @patterns << {
@@ -90,7 +90,7 @@ module Fluent
             all_matched = false
             break
           else
-            if !(record[key] =~ Regexp.new(pattern['matches'][key]))
+            if !(record[key] =~ pattern['matches'][key])
               all_matched = false
               break
             end

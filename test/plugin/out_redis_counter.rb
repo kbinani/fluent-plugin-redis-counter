@@ -36,8 +36,8 @@ class RedisCounterTest < Test::Unit::TestCase
       port 6379
       db_number 1
       <pattern>
-        match_status /^2[0-9]{2}$/
-        match_url /^https/
+        match_status ^2[0-9]{2}$
+        match_url ^https
         count_key status-normal
       </pattern>
       <pattern>
@@ -51,8 +51,8 @@ class RedisCounterTest < Test::Unit::TestCase
     assert_equal 2, driver.instance.patterns.size
 
     assert_equal 2, driver.instance.patterns[0]['matches'].size
-    assert_equal '/^2[0-9]{2}$/', driver.instance.patterns[0]['matches']['status']
-    assert_equal '/^https/', driver.instance.patterns[0]['matches']['url']
+    assert_equal Regexp.new('^2[0-9]{2}$'), driver.instance.patterns[0]['matches']['status']
+    assert_equal Regexp.new('^https'), driver.instance.patterns[0]['matches']['url']
     assert_equal 'status-normal', driver.instance.patterns[0]['count_key']
     assert_equal 1, driver.instance.patterns[0]['count_value']
 
