@@ -50,15 +50,15 @@ class RedisCounterTest < Test::Unit::TestCase
     assert_equal 1, driver.instance.db_number
     assert_equal 2, driver.instance.patterns.size
 
-    assert_equal 2, driver.instance.patterns[0]['matches'].size
-    assert_equal Regexp.new('^2[0-9]{2}$'), driver.instance.patterns[0]['matches']['status']
-    assert_equal Regexp.new('^https'), driver.instance.patterns[0]['matches']['url']
-    assert_equal 'status-normal', driver.instance.patterns[0]['count_key']
-    assert_equal 1, driver.instance.patterns[0]['count_value']
+    assert_equal 2, driver.instance.patterns[0].matches.size
+    assert_equal Regexp.new('^2[0-9]{2}$'), driver.instance.patterns[0].matches['status']
+    assert_equal Regexp.new('^https'), driver.instance.patterns[0].matches['url']
+    assert_equal 'status-normal', driver.instance.patterns[0].count_key
+    assert_equal 1, driver.instance.patterns[0].count_value
 
-    assert_equal 0, driver.instance.patterns[1]['matches'].size
-    assert_equal 'foo', driver.instance.patterns[1]['count_key']
-    assert_equal 2, driver.instance.patterns[1]['count_value']
+    assert_equal 0, driver.instance.patterns[1].matches.size
+    assert_equal 'foo', driver.instance.patterns[1].count_key
+    assert_equal 2, driver.instance.patterns[1].count_value
   end
 
   def test_configure_count_key_required

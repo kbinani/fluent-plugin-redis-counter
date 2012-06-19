@@ -18,29 +18,11 @@ module Fluent
       conf.elements.select { |e|
         e.name == 'pattern'
       }.each { |e|
-        if e.has_key?('count_key') == false
-          raise Fluent::ConfigError, '"count_key" is required.'
+        begin
+          @patterns << Pattern.new(e)
+        rescue RedisCounterException => e
+          raise Fluent::ConfigError, e.message
         end
-        count_value = 1
-        if e.has_key?('count_value')
-          begin
-            count_value = Integer(e['count_value'])
-          rescue
-            raise Fluent::ConfigError, 'invalid "count_value", integer required.'
-          end
-        end
-        matches = {}
-        e.each_key { |key|
-          if key =~ /^match_/
-            name = key['match_'.size .. key.size]
-            matches[name] = Regexp.new(e[key])
-          end
-        }
-        @patterns << {
-          'matches' => matches,
-          'count_key' => e['count_key'],
-          'count_value' => count_value
-        }
       }
     end
 
@@ -66,42 +48,61 @@ module Fluent
       chunk.open { |io|
         begin
           MessagePack::Unpacker.new(io).each { |record|
-            matched_pattern = get_matched_pattern(record)
-            if matched_pattern != nil && matched_pattern['count_value'] != 0
-              table[matched_pattern['count_key']] += matched_pattern['count_value']
-            end
+            @patterns.select { |pattern|
+              pattern.is_match?(record)
+            }.each{ |pattern|
+              table[pattern.count_key] += pattern.count_value
+            }
           }
         rescue EOFError
           # EOFError always occured when reached end of chunk.
         end
       }
-      table.each_key { |key|
-        if (value = table[key]) != 0
-          @redis.incrby(key, value)
-        end
+      table.each_pair.select { |key, value|
+        value != 0
+      }.each { |key, value|
+        @redis.incrby(key, value)
       }
     end
 
-    private
-    def get_matched_pattern(record)
-      @patterns.each { |pattern|
-        all_matched = true
-        pattern['matches'].each_key{ |key|
-          if !record.has_key?(key)
-            all_matched = false
-            break
-          else
-            if !(record[key] =~ pattern['matches'][key])
-              all_matched = false
-              break
-            end
+    class RedisCounterException < Exception
+    end
+
+    class Pattern
+      attr_reader :matches, :count_key, :count_value
+
+      def initialize(conf_element)
+        if conf_element.has_key?('count_key') == false
+          raise RedisCounterException, '"count_key" is required.'
+        end
+        @count_key = conf_element['count_key']
+
+        @count_value = 1
+        if conf_element.has_key?('count_value')
+          begin
+            @count_value = Integer(conf_element['count_value'])
+          rescue
+            raise RedisCounterException, 'invalid "count_value", integer required.'
+          end
+        end
+
+        @matches = {}
+        conf_element.each_pair.select { |key, value|
+          key =~ /^match_/
+        }.each { |key, value|
+          name = key['match_'.size .. key.size]
+          @matches[name] = Regexp.new(value)
+        }
+      end
+
+      def is_match?(record)
+        @matches.each_pair{ |key, value|
+          if !record.has_key?(key) || !(record[key] =~ value)
+            return false
           end
         }
-        if all_matched
-          return pattern
-        end
-      }
-      return nil
+        return true
+      end
     end
   end
 end
