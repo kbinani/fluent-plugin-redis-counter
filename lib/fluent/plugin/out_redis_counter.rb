@@ -82,6 +82,7 @@ module Fluent
       }
     end
 
+    private
     def get_matched_pattern(record)
       @patterns.each { |pattern|
         all_matched = true
