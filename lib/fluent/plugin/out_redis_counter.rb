@@ -52,7 +52,7 @@ module Fluent
             @patterns.select { |pattern|
               pattern.is_match?(record)
             }.each{ |pattern|
-              table[pattern.count_key] += pattern.count_value
+              table[pattern.get_count_key(time)] += pattern.count_value
             }
           }
         rescue EOFError
@@ -70,13 +70,28 @@ module Fluent
     end
 
     class Pattern
-      attr_reader :matches, :count_key, :count_value
+      attr_reader :matches, :count_value
 
       def initialize(conf_element)
-        if conf_element.has_key?('count_key') == false
-          raise RedisCounterException, '"count_key" is required.'
+        if !conf_element.has_key?('count_key') && !conf_element.has_key?('count_key_format')
+          raise RedisCounterException, '"count_key" or "count_key_format" is required.'
         end
-        @count_key = conf_element['count_key']
+        if conf_element.has_key?('count_key') && conf_element.has_key?('count_key_format')
+          raise RedisCounterException, 'both "count_key" and "count_key_format" are specified.'
+        end
+
+        if conf_element.has_key?('count_key')
+          @count_key = conf_element['count_key']
+        else
+          if conf_element.has_key?('localtime') && conf_element.has_key?('utc')
+            raise RedisCounterException, 'both "localtime" and "utc" are specified.'
+          end
+          is_localtime = true
+          if conf_element.has_key?('utc')
+            is_localtime = false
+          end
+          @count_key_format = TimeFormatter.new(conf_element['count_key_format'], is_localtime)
+        end
 
         @count_value = 1
         if conf_element.has_key?('count_value')
@@ -103,6 +118,14 @@ module Fluent
           end
         }
         return true
+      end
+
+      def get_count_key(time)
+        if @count_key_format == nil
+          @count_key
+        else
+          @count_key_format.format(time)
+        end
       end
     end
   end

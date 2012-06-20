@@ -16,6 +16,7 @@ class RedisCounterTest < Test::Unit::TestCase
     )
     redis.del("a")
     redis.del("b")
+    redis.del("foo-2012-06-21")
     redis.quit
   end
 
@@ -53,11 +54,11 @@ class RedisCounterTest < Test::Unit::TestCase
     assert_equal 2, driver.instance.patterns[0].matches.size
     assert_equal Regexp.new('^2[0-9]{2}$'), driver.instance.patterns[0].matches['status']
     assert_equal Regexp.new('^https'), driver.instance.patterns[0].matches['url']
-    assert_equal 'status-normal', driver.instance.patterns[0].count_key
+    assert_equal 'status-normal', driver.instance.patterns[0].get_count_key(Time.now.to_i)
     assert_equal 1, driver.instance.patterns[0].count_value
 
     assert_equal 0, driver.instance.patterns[1].matches.size
-    assert_equal 'foo', driver.instance.patterns[1].count_key
+    assert_equal 'foo', driver.instance.patterns[1].get_count_key(Time.now.to_i)
     assert_equal 2, driver.instance.patterns[1].count_value
   end
 
@@ -70,7 +71,58 @@ class RedisCounterTest < Test::Unit::TestCase
       ]
       flunk
     rescue Fluent::ConfigError => e
-      assert_equal '"count_key" is required.', e.message
+      assert_equal '"count_key" or "count_key_format" is required.', e.message
+    end
+  end
+
+  def test_configure_count_key_duplicated
+    begin
+      create_driver %[
+        <pattern>
+          count_key foo
+          count_key_format foo-%Y
+        </pattern>
+      ]
+      flunk
+    rescue Fluent::ConfigError => e
+      assert_equal 'both "count_key" and "count_key_format" are specified.', e.message
+    end
+  end
+
+  def test_configure_count_key_format_utc
+    driver = create_driver %[
+      <pattern>
+        count_key_format foo-%Y-%m-%d-%H-%M-%S
+        utc
+      </pattern>
+    ]
+    time = Time.parse('2011-06-21 03:12:01 UTC').to_i
+    assert_equal 'foo-2011-06-21-03-12-01', driver.instance.patterns[0].get_count_key(time)
+  end
+
+  def test_configure_count_key_format_localtime
+    driver = create_driver %[
+      <pattern>
+        count_key_format foo-%Y-%m-%d-%H-%M-%S
+        localtime
+      </pattern>
+    ]
+    local_time = Time.parse('2012-06-21 03:12:00').to_i
+    assert_equal 'foo-2012-06-21-03-12-00', driver.instance.patterns[0].get_count_key(local_time)
+  end
+
+  def test_configure_duplicated_timezone
+    begin
+      create_driver %[
+        <pattern>
+          count_key_format foo%Y
+          localtime
+          utc
+        </pattern>
+      ]
+      flunk
+    rescue Fluent::ConfigError => e
+      assert_equal 'both "localtime" and "utc" are specified.', e.message
     end
   end
 
@@ -113,6 +165,22 @@ class RedisCounterTest < Test::Unit::TestCase
 
     assert_equal '2', driver.instance.redis.get("a")
     assert_nil driver.instance.redis.get("b")
+  end
+
+  def test_write_with_timeformat
+    driver = create_driver %[
+      db_number 1
+      <pattern>
+        match_a ^2[0-9][0-9]$
+        count_key_format foo-%Y-%m-%d
+        count_value 2
+      </pattern>
+    ]
+    time = Time.parse('2012-06-21 03:01:00 UTC').to_i
+    driver.emit({"a" => "200"}, time)
+    driver.run
+
+    assert_equal '2', driver.instance.redis.get("foo-2012-06-21")
   end
 
 end
