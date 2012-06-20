@@ -39,7 +39,7 @@ module Fluent
     end
 
     def format(tag, time, record)
-      record.to_msgpack
+      [tag, time, record].to_msgpack
     end
 
     def write(chunk)
@@ -47,7 +47,8 @@ module Fluent
       table.default = 0
       chunk.open { |io|
         begin
-          MessagePack::Unpacker.new(io).each { |record|
+          MessagePack::Unpacker.new(io).each { |message|
+            (tag, time, record) = message
             @patterns.select { |pattern|
               pattern.is_match?(record)
             }.each{ |pattern|

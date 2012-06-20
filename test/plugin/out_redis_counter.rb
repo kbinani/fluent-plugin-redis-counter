@@ -89,8 +89,9 @@ class RedisCounterTest < Test::Unit::TestCase
   end
 
   def test_format
-    @d.emit({"a" => 1})
-    @d.expect_format({"a" => 1}.to_msgpack)
+    time = Time.parse('2012-06-21 01:55:00 UTC').to_i
+    @d.emit({"a" => 1}, time)
+    @d.expect_format(['test', time, {"a" => 1}].to_msgpack)
     @d.run
   end
 
