@@ -28,6 +28,15 @@ fluent-plugin-redis-counter is hosted by [RubyGems.org](https://rubygems.org/).
         count_key foo-status2xx           # key-name for Redis
         count_value 1                     # count-up amount(default: 1, negative value is allowed)
       </pattern>
+
+      # time-dependent redis keyname
+      # for example, "foo-status2xx-%Y-%m-%d" will be formatted to "foo-status2xx-2012-06-21".
+      # rules for placeholder(%Y, etc.) is similar to out_file plugin.
+      <pattern>
+        match_status ^2[0-9][0-9]$
+        count_key_format foo-statux2xx-%d
+        localtime                          # time-zone(default: localtime, it can be "utc" or "localtime")
+      </pattern>
     </match>
 
 # Example
