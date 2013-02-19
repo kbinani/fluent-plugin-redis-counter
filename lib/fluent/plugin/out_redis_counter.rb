@@ -52,7 +52,7 @@ module Fluent
             @patterns.select { |pattern|
               pattern.is_match?(record)
             }.each{ |pattern|
-              table[pattern.get_count_key(time)] += pattern.count_value
+              table[pattern.get_count_key(time, record)] += pattern.count_value
             }
           }
         rescue EOFError
@@ -67,6 +67,20 @@ module Fluent
     end
 
     class RedisCounterException < Exception
+    end
+
+    class RecordValueFormatter
+      attr_reader :format
+      def initialize(format)
+        @format = format
+      end
+
+      def key(record)
+        @format.gsub(/(%_\{[^\}]+\})/) do |s|
+          key = s.match(/\{([^\}]+)\}/)[1]
+          record[key]
+        end
+      end
     end
 
     class Pattern
@@ -90,7 +104,7 @@ module Fluent
           if conf_element.has_key?('utc')
             is_localtime = false
           end
-          @count_key_format = TimeFormatter.new(conf_element['count_key_format'], is_localtime)
+          @count_key_format = [conf_element['count_key_format'], is_localtime]
         end
 
         @count_value = 1
@@ -120,11 +134,13 @@ module Fluent
         return true
       end
 
-      def get_count_key(time)
+      def get_count_key(time, record)
         if @count_key_format == nil
           @count_key
         else
-          @count_key_format.format(time)
+          count_key = RecordValueFormatter.new(@count_key_format[0]).key(record)
+          formatter = TimeFormatter.new(count_key, @count_key_format[1])
+          formatter.format(time)
         end
       end
     end
