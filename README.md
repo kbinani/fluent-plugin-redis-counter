@@ -43,11 +43,11 @@ fluent-plugin-redis-counter is hosted by [RubyGems.org](https://rubygems.org/).
       # was received by fluentd.
       # for example, "customer:%_{customer_id}:status2xx" will be formatted to 
       # "customer:123:status2xx" if the JSON record contains a key named "customer_id" 
-      # with value 123, like so: {"status": 200, "customer_id": 123}.
+      # with value 123, like so: {"status": 200, "customer_id": 123 ... }.
       # these can be combined with the time formatting options in the previous example.
       <pattern>
         match_status ^2[0-9][0-9]$
-        count_key_format customer:%_{customer_id}:statux2xx-%Y-%m-%d
+        count_key_format customer:%_{customer_id}:status2xx-%Y-%m-%d
       </pattern>
     </match>
 
