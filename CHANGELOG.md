@@ -1,3 +1,6 @@
+## 0.3.0
+* count value can be picked up from JSON data contents.
+
 ## 0.2.0
 * count key can be built from JSON data contents.
 
