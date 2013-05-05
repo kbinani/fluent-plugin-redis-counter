@@ -17,6 +17,7 @@ class RedisCounterTest < Test::Unit::TestCase
     redis.del("a")
     redis.del("b")
     redis.del("foo-2012-06-21")
+    redis.del("item_sum_count:200")
     redis.quit
   end
 
@@ -230,6 +231,28 @@ class RedisCounterTest < Test::Unit::TestCase
     driver.run
 
     assert_equal '123', driver.instance.redis.get("item_sum_count:200")
+
+    driver = create_driver %[
+      db_number 1
+      <pattern>
+        count_key_format item_sum_count:%_{item_id}
+        count_value_key count
+      </pattern>
+    ]
+    driver.emit({"item_id" => 200, }, time)
+    driver.run
+    assert_equal '123', driver.instance.redis.get("item_sum_count:200"), "it should be ignore when count_value_key does not exists."
+
+    driver = create_driver %[
+      db_number 1
+      <pattern>
+        count_key_format item_sum_count:%_{item_id}
+        count_value_key count
+      </pattern>
+    ]
+    driver.emit({"item_id" => 200, "count" => "111aaa"}, time)
+    driver.run
+    assert_equal '123', driver.instance.redis.get("item_sum_count:200"), "it should be ignore when count_value_key is not number"
   end
 
 end

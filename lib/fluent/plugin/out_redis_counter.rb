@@ -150,7 +150,8 @@ module Fluent
 
       def get_count_value(record)
         if @count_value_key
-          return record[@count_value_key] || 0
+          ret = record[@count_value_key] || 0
+          return ret.kind_of?(Integer) ? ret : 0
         else
           if @count_value
             return @count_value
