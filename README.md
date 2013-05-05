@@ -49,6 +49,14 @@ fluent-plugin-redis-counter is hosted by [RubyGems.org](https://rubygems.org/).
         match_status ^2[0-9][0-9]$
         count_key_format customer:%_{customer_id}:status2xx-%Y-%m-%d
       </pattern>
+
+      # you can also sum up specified key with count_value_key option.
+      # for example, {"count": 321, "customer_id": 123 ... }.
+      # INCRBY item_count:123 321.
+      <pattern>
+        count_key_format item_count:%_{item_id}
+        count_value_key count
+      </pattern>
     </match>
 
 # Example
