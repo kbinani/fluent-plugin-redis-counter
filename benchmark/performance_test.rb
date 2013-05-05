@@ -1,6 +1,10 @@
 require 'fluent/test'
 require 'benchmark'
 
+if ENV["PROFILE"]
+require 'ruby-prof'
+end
+
 $LOAD_PATH.unshift(File.expand_path(File.join(File.dirname(__FILE__), "..", "lib")))
 require 'fluent/plugin/out_redis_counter'
 
@@ -22,11 +26,22 @@ fluent = Fluent::Test::BufferedOutputTestDriver.new(Fluent::RedisCounterOutput).
 end
 
 result = nil
+profile = nil
 Benchmark.bm do |x|
   result = x.report {
-    fluent.run
+    if ENV["PROFILE"]
+      profile = RubyProf.profile do
+        fluent.run
+      end
+    else
+        fluent.run
+    end
   }
 end
 
+if ENV["PROFILE"]
+  profile_printer = RubyProf::GraphPrinter.new(profile)
+  profile_printer.print(STDOUT, {})
+end
 $log.info("benchmark result: #{result}")
 
