@@ -152,6 +152,27 @@ class RedisCounterTest < Test::Unit::TestCase
     end
   end
 
+  def test_get_count_value_with_count_value_key
+    driver = create_driver %[
+      <pattern>
+        count_key_format %_{customer_id}
+        count_value_key count
+      </pattern>
+    ]
+    record = {'count' => 123, 'customer_id' => 321}
+    assert_equal 123, driver.instance.patterns[0].get_count_value(record)
+  end
+
+  def test_get_count_value_without_count_value_key
+    driver = create_driver %[
+      <pattern>
+        count_key_format %_{customer_id}
+      </pattern>
+    ]
+    record = {'count' => 123, 'customer_id' => 321}
+    assert_equal 1, driver.instance.patterns[0].get_count_value(record)
+  end
+
   def test_format
     time = Time.parse('2012-06-21 01:55:00 UTC').to_i
     @d.emit({"a" => 1}, time)
@@ -193,6 +214,22 @@ class RedisCounterTest < Test::Unit::TestCase
     driver.run
 
     assert_equal '2', driver.instance.redis.get("foo-2012-06-21")
+  end
+
+  def test_write_with_count_value_key
+    driver = create_driver %[
+      db_number 1
+      <pattern>
+        count_key_format item_sum_count:%_{item_id}
+        count_value_key count
+      </pattern>
+    ]
+
+    time = Time.parse('2012-06-21 03:01:00 UTC').to_i
+    driver.emit({"item_id" => 200, "count" => 123}, time)
+    driver.run
+
+    assert_equal '123', driver.instance.redis.get("item_sum_count:200")
   end
 
 end

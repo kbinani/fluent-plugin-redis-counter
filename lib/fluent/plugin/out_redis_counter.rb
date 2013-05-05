@@ -52,7 +52,7 @@ module Fluent
             @patterns.select { |pattern|
               pattern.is_match?(record)
             }.each{ |pattern|
-              table[pattern.get_count_key(time, record)] += pattern.count_value
+              table[pattern.get_count_key(time, record)] += pattern.get_count_value(record)
             }
           }
         rescue EOFError
@@ -84,7 +84,7 @@ module Fluent
     end
 
     class Pattern
-      attr_reader :matches, :count_value
+      attr_reader :matches, :count_value, :count_value_key
 
       def initialize(conf_element)
         if !conf_element.has_key?('count_key') && !conf_element.has_key?('count_key_format')
@@ -107,12 +107,16 @@ module Fluent
           @count_key_format = [conf_element['count_key_format'], is_localtime]
         end
 
-        @count_value = 1
-        if conf_element.has_key?('count_value')
-          begin
-            @count_value = Integer(conf_element['count_value'])
-          rescue
-            raise RedisCounterException, 'invalid "count_value", integer required.'
+        if conf_element.has_key?('count_value_key')
+          @count_value_key = conf_element['count_value_key']
+        else
+          @count_value = 1
+          if conf_element.has_key?('count_value')
+            begin
+              @count_value = Integer(conf_element['count_value'])
+            rescue
+              raise RedisCounterException, 'invalid "count_value", integer required.'
+            end
           end
         end
 
@@ -141,6 +145,16 @@ module Fluent
           count_key = RecordValueFormatter.new(@count_key_format[0]).key(record)
           formatter = TimeFormatter.new(count_key, @count_key_format[1])
           formatter.format(time)
+        end
+      end
+
+      def get_count_value(record)
+        if @count_value_key
+          return record[@count_value_key] || 0
+        else
+          if @count_value
+            return @count_value
+          end
         end
       end
     end
