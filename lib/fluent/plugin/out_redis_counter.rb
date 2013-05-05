@@ -59,11 +59,13 @@ module Fluent
           # EOFError always occured when reached end of chunk.
         end
       }
-      table.each_pair.select { |key, value|
-        value != 0
-      }.each { |key, value|
-        @redis.incrby(key, value)
-      }
+      @redis.pipelined do
+        table.each_pair.select { |key, value|
+          value != 0
+        }.each { |key, value|
+          @redis.incrby(key, value)
+        }
+      end
     end
 
     class RedisCounterException < Exception
