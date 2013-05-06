@@ -111,6 +111,7 @@ module Fluent
             is_localtime = false
           end
           @count_key_format = [conf_element['count_key_format'], is_localtime]
+          @record_value_formatter = RecordValueFormatter.new(@count_key_format[0])
         end
 
         if conf_element.has_key?('count_value_key')
@@ -148,7 +149,7 @@ module Fluent
         if @count_key_format == nil
           @count_key
         else
-          count_key = RecordValueFormatter.new(@count_key_format[0]).key(record)
+          count_key = @record_value_formatter.key(record)
           formatter = TimeFormatter.new(count_key, @count_key_format[1])
           formatter.format(time)
         end
