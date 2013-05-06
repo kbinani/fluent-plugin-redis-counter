@@ -3,6 +3,8 @@ module Fluent
     Fluent::Plugin.register_output('redis_counter', self)
     attr_reader :host, :port, :db_number, :redis, :patterns
 
+    config_param :max_pipelining, :integer, :default => 1000
+
     def initialize
       super
       require 'redis'
@@ -59,13 +61,15 @@ module Fluent
           # EOFError always occured when reached end of chunk.
         end
       }
-      @redis.pipelined do
-        table.each_pair.select { |key, value|
-          value != 0
-        }.each { |key, value|
-          @redis.incrby(key, value)
-        }
-      end
+      table.each_pair.select { |key, value|
+        value != 0
+      }.each_slice(@max_pipelining) { |items|
+        @redis.pipelined do
+          items.each do |key, value|
+            @redis.incrby(key, value)
+          end
+        end
+      }
     end
 
     class RedisCounterException < Exception
