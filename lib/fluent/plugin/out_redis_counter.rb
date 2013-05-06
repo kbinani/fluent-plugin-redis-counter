@@ -3,6 +3,8 @@ module Fluent
     Fluent::Plugin.register_output('redis_counter', self)
     attr_reader :host, :port, :db_number, :redis, :patterns
 
+    config_param :max_pipelining, :integer, :default => 1000
+
     def initialize
       super
       require 'redis'
@@ -61,8 +63,12 @@ module Fluent
       }
       table.each_pair.select { |key, value|
         value != 0
-      }.each { |key, value|
-        @redis.incrby(key, value)
+      }.each_slice(@max_pipelining) { |items|
+        @redis.pipelined do
+          items.each do |key, value|
+            @redis.incrby(key, value)
+          end
+        end
       }
     end
 
@@ -75,10 +81,11 @@ module Fluent
         @format = format
       end
 
+      CUSTOM_KEY_EXPRESSION_RE = /(%_\{([^\}]+)\})/
+
       def key(record)
-        @format.gsub(/(%_\{[^\}]+\})/) do |s|
-          key = s.match(/\{([^\}]+)\}/)[1]
-          record[key]
+        @format.gsub(CUSTOM_KEY_EXPRESSION_RE) do |s|
+          record[$2]
         end
       end
     end
@@ -105,6 +112,7 @@ module Fluent
             is_localtime = false
           end
           @count_key_format = [conf_element['count_key_format'], is_localtime]
+          @record_value_formatter = RecordValueFormatter.new(@count_key_format[0])
         end
 
         if conf_element.has_key?('count_value_key')
@@ -142,7 +150,7 @@ module Fluent
         if @count_key_format == nil
           @count_key
         else
-          count_key = RecordValueFormatter.new(@count_key_format[0]).key(record)
+          count_key = @record_value_formatter.key(record)
           formatter = TimeFormatter.new(count_key, @count_key_format[1])
           formatter.format(time)
         end
