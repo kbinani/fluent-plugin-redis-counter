@@ -81,10 +81,11 @@ module Fluent
         @format = format
       end
 
+      CUSTOM_KEY_EXPRESSION_RE = /(%_\{([^\}]+)\})/
+
       def key(record)
-        @format.gsub(/(%_\{[^\}]+\})/) do |s|
-          key = s.match(/\{([^\}]+)\}/)[1]
-          record[key]
+        @format.gsub(CUSTOM_KEY_EXPRESSION_RE) do |s|
+          record[$2]
         end
       end
     end
