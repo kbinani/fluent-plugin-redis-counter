@@ -1,3 +1,6 @@
+## 0.3.1
+* improve performance
+
 ## 0.3.0
 * count value can be picked up from JSON data contents.
 
