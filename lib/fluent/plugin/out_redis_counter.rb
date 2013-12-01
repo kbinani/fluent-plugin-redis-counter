@@ -52,9 +52,10 @@ module Fluent
           MessagePack::Unpacker.new(io).each { |message|
             (tag, time, record) = message
             @patterns.select { |pattern|
-              pattern.is_match?(record)
-            }.each{ |pattern|
-              table[pattern.get_count_key(time, record)] += pattern.get_count_value(record)
+              if pattern.is_match?(record)
+                table[pattern.get_count_key(time, record)] += pattern.get_count_value(record)
+                break if pattern.last
+              end
             }
           }
         rescue EOFError
@@ -91,7 +92,7 @@ module Fluent
     end
 
     class Pattern
-      attr_reader :matches, :count_value, :count_value_key
+      attr_reader :matches, :count_value, :count_value_key, :last
 
       def initialize(conf_element)
         if !conf_element.has_key?('count_key') && !conf_element.has_key?('count_key_format')
@@ -135,6 +136,8 @@ module Fluent
           name = key['match_'.size .. key.size]
           @matches[name] = Regexp.new(value)
         }
+
+        @last = conf_element.has_key?('last') ? conf_element['last'] == 'true' : false
       end
 
       def is_match?(record)

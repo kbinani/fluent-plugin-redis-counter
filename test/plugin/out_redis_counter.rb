@@ -255,4 +255,58 @@ class RedisCounterTest < Test::Unit::TestCase
     assert_equal '123', driver.instance.redis.get("item_sum_count:200"), "it should be ignore when count_value_key is not number"
   end
 
+  def test_write_without_last
+    conf = %[
+      db_number 1
+      <pattern>
+        match_status ^2[0-9]{2}$
+        match_url ^https
+        count_key a
+      </pattern>
+      <pattern>
+        count_key b
+        count_value 2
+      </pattern>
+    ]
+
+    driver = create_driver conf
+    driver.emit({"status" => "200", "url" => "https://foo.com"})
+    driver.run
+    assert_equal '1', driver.instance.redis.get("a")
+    assert_equal '2', driver.instance.redis.get("b")
+
+    driver = create_driver conf
+    driver.emit({"status" => "404", "url" => "https://foo.com/404"})
+    driver.run
+    assert_equal '1', driver.instance.redis.get("a")
+    assert_equal '4', driver.instance.redis.get("b")
+  end
+
+  def test_write_with_last
+    conf = %[
+      db_number 1
+      <pattern>
+        match_status ^2[0-9]{2}$
+        match_url ^https
+        count_key a
+        last true
+      </pattern>
+      <pattern>
+        count_key b
+        count_value 2
+      </pattern>
+    ]
+
+    driver = create_driver conf
+    driver.emit({"status" => "200", "url" => "https://foo.com"})
+    driver.run
+    assert_equal '1', driver.instance.redis.get("a")
+    assert_nil driver.instance.redis.get("b")
+
+    driver = create_driver conf
+    driver.emit({"status" => "404", "url" => "https://foo.com/404"})
+    driver.run
+    assert_equal '1', driver.instance.redis.get("a")
+    assert_equal '2', driver.instance.redis.get("b")
+  end
 end
