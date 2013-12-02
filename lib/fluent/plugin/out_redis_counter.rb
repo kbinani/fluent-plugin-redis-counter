@@ -92,7 +92,7 @@ module Fluent
     end
 
     class Pattern
-      attr_reader :matches, :count_value, :count_value_key, :last
+      attr_reader :matches, :count_value, :count_value_key, :last, :required_keys
 
       def initialize(conf_element)
         if !conf_element.has_key?('count_key') && !conf_element.has_key?('count_key_format')
@@ -138,6 +138,10 @@ module Fluent
         }
 
         @last = conf_element.has_key?('last') ? conf_element['last'] == 'true' : false
+        @required_keys = []
+        if conf_element.has_key?('required_keys')
+          @required_keys = conf_element['required_keys'].split(',').map(&:strip).uniq
+        end
       end
 
       def is_match?(record)
@@ -145,6 +149,9 @@ module Fluent
           if !record.has_key?(key) || !(record[key] =~ value)
             return false
           end
+        }
+        @required_keys.each { |key|
+          return false unless record.has_key?(key)
         }
         return true
       end

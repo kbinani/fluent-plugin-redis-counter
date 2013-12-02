@@ -309,4 +309,40 @@ class RedisCounterTest < Test::Unit::TestCase
     assert_equal '1', driver.instance.redis.get("a")
     assert_equal '2', driver.instance.redis.get("b")
   end
+
+  def test_write_with_required_keys
+    conf = %[
+      db_number 1
+      <pattern>
+        required_keys x
+        match_status ^2[0-9]{2}$
+        match_url ^https
+        count_key a
+      </pattern>
+      <pattern>
+        required_keys x,y
+        match_status ^2[0-9]{2}$
+        match_url ^https
+        count_key b
+      </pattern>
+    ]
+
+    driver = create_driver conf
+    driver.emit({"status" => "200", "url" => "https://foo.com", "x" => "foo"})
+    driver.run
+    assert_equal '1', driver.instance.redis.get("a")
+    assert_nil driver.instance.redis.get("b")
+
+    driver = create_driver conf
+    driver.emit({"status" => "200", "url" => "https://foo.com", "y" => "bar"})
+    driver.run
+    assert_equal '1', driver.instance.redis.get("a")
+    assert_nil driver.instance.redis.get("b")
+
+    driver = create_driver conf
+    driver.emit({"status" => "200", "url" => "https://foo.com", "x" => "foo", "y" => "bar"})
+    driver.run
+    assert_equal '2', driver.instance.redis.get("a")
+    assert_equal '1', driver.instance.redis.get("b")
+  end
 end
