@@ -345,4 +345,26 @@ class RedisCounterTest < Test::Unit::TestCase
     assert_equal '2', driver.instance.redis.get("a")
     assert_equal '1', driver.instance.redis.get("b")
   end
+
+  def test_write_with_float_value
+    conf = %[
+      db_number 1
+      <pattern>
+        match_status ^2[0-9]{2}$
+        match_url ^https
+        count_key a
+        count_value_key x
+      </pattern>
+    ]
+
+    driver = create_driver conf
+    driver.emit({"status" => "200", "url" => "https://foo.com", "x" => 5.0})
+    driver.run
+    assert_equal '5', driver.instance.redis.get("a")
+
+    driver = create_driver conf
+    driver.emit({"status" => "200", "url" => "https://foo.com", "x" => 6.78})
+    driver.run
+    assert_equal '11.78', driver.instance.redis.get("a")
+  end
 end

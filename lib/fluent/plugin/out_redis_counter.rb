@@ -67,7 +67,11 @@ module Fluent
       }.each_slice(@max_pipelining) { |items|
         @redis.pipelined do
           items.each do |key, value|
-            @redis.incrby(key, value)
+            if value.is_a?(Float)
+              @redis.incrbyfloat(key, value)
+            else
+              @redis.incrby(key, value)
+            end
           end
         end
       }
@@ -169,7 +173,7 @@ module Fluent
       def get_count_value(record)
         if @count_value_key
           ret = record[@count_value_key] || 0
-          return ret.kind_of?(Integer) ? ret : 0
+          return (ret.kind_of?(Integer) || ret.kind_of?(Float)) ? ret : 0
         else
           if @count_value
             return @count_value
