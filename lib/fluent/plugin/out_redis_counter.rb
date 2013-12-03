@@ -53,7 +53,14 @@ module Fluent
             (tag, time, record) = message
             @patterns.select { |pattern|
               if pattern.is_match?(record)
-                table[pattern.get_count_key(time, record)] += pattern.get_count_value(record)
+                key = pattern.get_count_key(time, record)
+                if pattern.list_value_format
+                  list = table[key]
+                  list = table[key] = [] unless list.is_a?(Array)
+                  list << pattern.get_list_value(time, record)
+                else
+                  table[key] += pattern.get_count_value(record)
+                end
                 break if pattern.last
               end
             }
@@ -67,7 +74,9 @@ module Fluent
       }.each_slice(@max_pipelining) { |items|
         @redis.pipelined do
           items.each do |key, value|
-            if value.is_a?(Float)
+            if value.is_a?(Array)
+              @redis.lpush(key, value)
+            elsif value.is_a?(Float)
               @redis.incrbyfloat(key, value)
             else
               @redis.incrby(key, value)
@@ -96,7 +105,7 @@ module Fluent
     end
 
     class Pattern
-      attr_reader :matches, :count_value, :count_value_key, :last, :required_keys
+      attr_reader :matches, :count_value, :count_value_key, :last, :required_keys, :list_value_format
 
       def initialize(conf_element)
         if !conf_element.has_key?('count_key') && !conf_element.has_key?('count_key_format')
@@ -146,6 +155,18 @@ module Fluent
         if conf_element.has_key?('required_keys')
           @required_keys = conf_element['required_keys'].split(',').map(&:strip).uniq
         end
+        @list_value_format = nil
+        if conf_element.has_key?('list_value_format')
+          if conf_element.has_key?('localtime') && conf_element.has_key?('utc')
+            raise RedisCounterException, 'both "localtime" and "utc" are specified.'
+          end
+          is_localtime = true
+          if conf_element.has_key?('utc')
+            is_localtime = false
+          end
+          @list_value_format = [conf_element['list_value_format'], is_localtime]
+          @list_value_formatter = RecordValueFormatter.new(@list_value_format[0])
+        end
       end
 
       def is_match?(record)
@@ -178,6 +199,16 @@ module Fluent
           if @count_value
             return @count_value
           end
+        end
+      end
+
+      def get_list_value(time, record)
+        if @list_value_format
+          list_value = @list_value_formatter.key(record)
+          formatter = TimeFormatter.new(list_value, @list_value_format[1])
+          formatter.format(time)
+        else
+          ''
         end
       end
     end

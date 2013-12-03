@@ -367,4 +367,35 @@ class RedisCounterTest < Test::Unit::TestCase
     driver.run
     assert_equal '11.78', driver.instance.redis.get("a")
   end
+
+  def test_configure_list_value_format
+    driver = create_driver %[
+      <pattern>
+        count_key a
+        list_value_format %_{prefix}-foo-%Y%m%d%H%M%S-%_{type}-%_{customer_id}
+        utc
+      </pattern>
+    ]
+    utc_time = Time.parse('2012-06-21 12:12:45 +0900').to_i
+    record = {'prefix' => 'pre', 'type' => 'bar', 'customer_id' => 321}
+    assert_equal 'pre-foo-20120621031245-bar-321', driver.instance.patterns[0].get_list_value(utc_time, record)
+  end
+
+  def test_write_with_list_value_format
+    conf = %[
+      <pattern>
+        count_key a
+        list_value_format %_{prefix}-foo-%Y%m%d%H%M%S-%_{type}-%_{customer_id}
+        utc
+      </pattern>
+    ]
+
+    driver = create_driver conf
+    driver.emit({'prefix' => 'pre1', 'type' => 'bar', 'customer_id' => 321}, Time.gm(2013, 11, 3, 12, 34, 56))
+    driver.emit({'prefix' => 'pre2', 'type' => 'foo', 'customer_id' => 654}, Time.gm(2013, 11, 3, 19, 20, 21))
+    driver.run
+    assert_equal 'pre2-foo-20131103192021-foo-654', driver.instance.redis.lpop('a')
+    assert_equal 'pre1-foo-20131103123456-bar-321', driver.instance.redis.lpop('a')
+    assert_nil driver.instance.redis.lpop('a')
+  end
 end
