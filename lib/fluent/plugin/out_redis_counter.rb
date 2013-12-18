@@ -56,22 +56,52 @@ module Fluent
             @patterns.select { |pattern|
               pattern.is_match?(record)
             }.each{ |pattern|
-              table[pattern.get_count_key(time, record)] += pattern.get_count_value(record)
+              count_key = pattern.get_count_key(time, record)
+              count_hash_key = pattern.get_count_hash_key(record)
+
+              key = RecordKey.new(count_key, count_hash_key)
+              table[key] += pattern.get_count_value(record)
             }
           }
         rescue EOFError
           # EOFError always occured when reached end of chunk.
         end
       }
+
       table.each_pair.select { |key, value|
         value != 0
       }.each_slice(@max_pipelining) { |items|
         @redis.pipelined do
           items.each do |key, value|
-            @redis.incrby(key, value)
+            if key.count_hash_key == nil
+              @redis.incrby(key.count_key, value)
+            else
+              @redis.hincrby(key.count_key, key.count_hash_key, value)
+            end
           end
         end
       }
+    end
+
+    class RecordKey
+      attr_reader :count_key, :count_hash_key
+      def initialize(count_key, count_hash_key = nil)
+        @count_key = count_key
+        @count_hash_key = count_hash_key
+      end
+
+      def hash
+        hash_key = @count_key + "@@@@"
+        if @count_hash_key != nil
+          hash_key += @count_hash_key
+        end
+
+        hash_key.hash
+      end
+
+      def eql?(other)
+        return @count_key.eql?(other.count_key) && @count_hash_key.eql?(other.count_hash_key)
+      end
     end
 
     class RedisCounterException < Exception
@@ -114,7 +144,14 @@ module Fluent
             is_localtime = false
           end
           @count_key_format = [conf_element['count_key_format'], is_localtime]
-          @record_value_formatter = RecordValueFormatter.new(@count_key_format[0])
+          @record_formatter_for_count_key = RecordValueFormatter.new(@count_key_format[0])
+        end
+
+        if conf_element.has_key?('count_hash_key_format')
+          @count_hash_key_format = conf_element['count_hash_key_format']
+          @record_formatter_for_count_hash_key = RecordValueFormatter.new(@count_hash_key_format)
+        else
+          @count_hash_key_format = nil
         end
 
         if conf_element.has_key?('count_value_key')
@@ -152,9 +189,17 @@ module Fluent
         if @count_key_format == nil
           @count_key
         else
-          count_key = @record_value_formatter.key(record)
+          count_key = @record_formatter_for_count_key.key(record)
           formatter = TimeFormatter.new(count_key, @count_key_format[1])
           formatter.format(time)
+        end
+      end
+
+      def get_count_hash_key(record)
+        if @count_hash_key_format == nil
+          return nil
+        else
+          return @record_formatter_for_count_hash_key.key(record)
         end
       end
 
