@@ -4,8 +4,13 @@ rvm:
   - 1.9.2
   - 1.9.3
 
+services:
+  - redis-server
+
 script: bundle exec ruby -S -Itest test/plugin/out_redis_counter.rb
 
 branches:
   only:
     - master
+    - develop
+
