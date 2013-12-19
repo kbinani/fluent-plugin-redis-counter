@@ -19,6 +19,7 @@ class RedisCounterTest < Test::Unit::TestCase
     redis.del("foo-2012-06-21")
     redis.del("item_sum_count:200")
     redis.del("item_sum_count_by_hash:200")
+    redis.del("item_sum_count_by_zset:200")
     redis.quit
   end
 
@@ -153,6 +154,34 @@ class RedisCounterTest < Test::Unit::TestCase
     assert_equal 'localhost-hash-key', driver.instance.patterns[0].get_count_hash_key(record)
   end
 
+  def test_configure_count_zset_key
+    driver = create_driver %[
+      <pattern>
+        count_key_format %_{prefix}-foo-bar
+        count_zset_key_format %_{host}-zset-key
+      </pattern>
+    ]
+    record = {'prefix' => 'pre', 'host' => 'localhost'}
+    local_time = Time.parse('2012-06-21 03:12:00').to_i
+    assert_equal 'pre-foo-bar', driver.instance.patterns[0].get_count_key(local_time, record)
+    assert_equal 'localhost-zset-key', driver.instance.patterns[0].get_count_zset_key(record)
+  end
+
+  def test_configure_both_specified_hash_key_and_zset_key
+    begin
+      create_driver %[
+        <pattern>
+          count_key_format %_{prefix}-foo-bar
+          count_hash_key_format %_{host}-hash-key
+          count_zset_key_format %_{host}-zset-key
+        </pattern>
+      ]
+      flunk
+    rescue Fluent::ConfigError => e
+      assert_equal 'both "count_hash_key_format" "count_zset_key_format" are specified.', e.message
+    end
+  end
+
   def test_configure_invalid_count_value
     begin
       create_driver %[
@@ -265,6 +294,42 @@ class RedisCounterTest < Test::Unit::TestCase
 
     assert_equal '2', driver.instance.redis.hget("item_sum_count_by_hash:200", "US")
   end
+
+  def test_write_with_count_zset_key
+    def create_driver_for_test
+      driver = create_driver %[
+        db_number 1
+        <pattern>
+          count_key_format item_sum_count_by_zset:%_{item_id}
+          count_zset_key_format %_{from}
+        </pattern>
+      ]
+    end
+    
+    driver = create_driver_for_test
+
+    time = Time.parse('2012-06-21 03:01:00 UTC').to_i
+    driver.emit({"item_id" => 200, "from" => "US"}, time)
+    driver.run
+
+    assert_equal 1, driver.instance.redis.zscore("item_sum_count_by_zset:200", "US")
+
+    driver = create_driver_for_test
+
+    driver.emit({"item_id" => 200, "from" => "CHINA"}, time)
+    driver.run
+
+    assert_equal 1, driver.instance.redis.zscore("item_sum_count_by_zset:200", "CHINA")
+    assert_equal 1, driver.instance.redis.zscore("item_sum_count_by_zset:200", "US")
+
+    driver = create_driver_for_test
+
+    driver.emit({"item_id" => 200, "from" => "US"}, time)
+    driver.run
+
+    assert_equal 2, driver.instance.redis.zscore("item_sum_count_by_zset:200", "US")
+  end
+
 
   def test_write_with_count_value_key
     driver = create_driver %[

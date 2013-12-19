@@ -53,10 +53,19 @@ fluent-plugin-redis-counter is hosted by [RubyGems.org](https://rubygems.org/).
       # you can also sum up key in hash, by configuring count_hash_key_format
       # syntax is same to count_key_format
       # for example, {"custom_id": 123, "date": "20131219" ...}.
-      # HINCR item_count:123 20131219 1
+      # HINCRBY item_count:123 20131219 1
       <pattern>
         count_key_format item_count:%_{item_id}
         count_hash_key_format %_{date}
+      <pattern>
+
+      # you can also sum up key in sorted set(zset), by configuring count_zset_key_format
+      # syntax and usage is same to count_hash_key_format
+      # for example, {"custom_id": 123, "date": "20131219" ...}.
+      # ZINCRBY item_count:123 1 20131219
+      <pattern>
+        count_key_format item_count:%_{item_id}
+        count_zset_key_format %_{date}
       <pattern>
 
       # you can also sum up specified key with count_value_key option.

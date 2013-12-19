@@ -58,8 +58,9 @@ module Fluent
             }.each{ |pattern|
               count_key = pattern.get_count_key(time, record)
               count_hash_key = pattern.get_count_hash_key(record)
+              count_zset_key = pattern.get_count_zset_key(record)
 
-              key = RecordKey.new(count_key, count_hash_key)
+              key = RecordKey.new(count_key, count_hash_key, count_zset_key)
               table[key] += pattern.get_count_value(record)
             }
           }
@@ -73,10 +74,12 @@ module Fluent
       }.each_slice(@max_pipelining) { |items|
         @redis.pipelined do
           items.each do |key, value|
-            if key.count_hash_key == nil
-              @redis.incrby(key.count_key, value)
-            else
+            if key.count_hash_key != nil
               @redis.hincrby(key.count_key, key.count_hash_key, value)
+            elsif key.count_zset_key != nil
+              @redis.zincrby(key.count_key, value, key.count_zset_key)
+            else
+              @redis.incrby(key.count_key, value)
             end
           end
         end
@@ -84,23 +87,30 @@ module Fluent
     end
 
     class RecordKey
-      attr_reader :count_key, :count_hash_key
-      def initialize(count_key, count_hash_key = nil)
+      attr_reader :count_key, :count_hash_key, :count_zset_key
+
+      def initialize(count_key, count_hash_key, count_zset_key)
         @count_key = count_key
         @count_hash_key = count_hash_key
+        @count_zset_key = count_zset_key
       end
 
       def hash
-        hash_key = @count_key + "@@@@"
-        if @count_hash_key != nil
-          hash_key += @count_hash_key
-        end
+        hash_key = ""
+
+        keys = [@count_key, @count_hash_key, @count_zset_key]
+        keys.select { |key| 
+          key != nil
+        }.each { |key|
+          hash_key += ("@@@@" + key)
+        }
 
         hash_key.hash
       end
 
       def eql?(other)
-        return @count_key.eql?(other.count_key) && @count_hash_key.eql?(other.count_hash_key)
+        return @count_key.eql?(other.count_key) && @count_hash_key.eql?(other.count_hash_key) && 
+          @count_zset_key.eql?(other.count_zset_key)
       end
     end
 
@@ -147,11 +157,22 @@ module Fluent
           @record_formatter_for_count_key = RecordValueFormatter.new(@count_key_format[0])
         end
 
+        if conf_element.has_key?('count_hash_key_format') && conf_element.has_key?('count_zset_key_format')
+          raise RedisCounterException, 'both "count_hash_key_format" "count_zset_key_format" are specified.'
+        end
+
         if conf_element.has_key?('count_hash_key_format')
           @count_hash_key_format = conf_element['count_hash_key_format']
           @record_formatter_for_count_hash_key = RecordValueFormatter.new(@count_hash_key_format)
         else
           @count_hash_key_format = nil
+        end
+
+        if conf_element.has_key?('count_zset_key_format')
+          @count_zset_key_format = conf_element['count_zset_key_format']
+          @record_formatter_for_count_zset_key = RecordValueFormatter.new(@count_zset_key_format)
+        else
+          @count_zset_key_format = nil
         end
 
         if conf_element.has_key?('count_value_key')
@@ -200,6 +221,14 @@ module Fluent
           return nil
         else
           return @record_formatter_for_count_hash_key.key(record)
+        end
+      end
+
+      def get_count_zset_key(record)
+        if @count_zset_key_format == nil
+          return nil
+        else
+          return @record_formatter_for_count_zset_key.key(record)
         end
       end
 
