@@ -3,11 +3,11 @@ $:.push File.expand_path("../lib", __FILE__)
 
 Gem::Specification.new do |s|
   s.name        = "fluent-plugin-redis-counter"
-  s.version     = "0.3.1"
+  s.version     = "0.3.2"
   s.description = "fluent-plugin-redis-counter is a fluent plugin to count-up/down redis keys."
   s.platform    = Gem::Platform::RUBY
   s.authors     = ["Buntaro Okada"]
-  s.date        = %q{2013-05-06}
+  s.date        = %q{2013-12-18}
   s.email       = "kbinani.bt@gmail.com"
   s.homepage    = "https://github.com/kbinani/fluent-plugin-redis-counter"
   s.summary     = "Redis counter plugin for fluent"

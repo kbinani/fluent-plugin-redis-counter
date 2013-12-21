@@ -1,7 +1,7 @@
 module Fluent
   class RedisCounterOutput < BufferedOutput
     Fluent::Plugin.register_output('redis_counter', self)
-    attr_reader :host, :port, :db_number, :redis, :patterns
+    attr_reader :host, :port, :db_number, :password, :redis, :patterns
 
     config_param :max_pipelining, :integer, :default => 1000
 
@@ -15,6 +15,7 @@ module Fluent
       super
       @host = conf.has_key?('host') ? conf['host'] : 'localhost'
       @port = conf.has_key?('port') ? conf['port'].to_i : 6379
+      @password = conf.has_key?('password') ? conf['password'] : nil
       @db_number = conf.has_key?('db_number') ? conf['db_number'].to_i : nil
       @patterns = []
       conf.elements.select { |element|
@@ -32,6 +33,7 @@ module Fluent
       super
       @redis = Redis.new(
         :host => @host, :port => @port,
+        :password => @password,
         :thread_safe => true, :db => @db_number
       )
     end
