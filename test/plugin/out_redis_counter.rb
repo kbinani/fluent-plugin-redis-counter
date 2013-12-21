@@ -255,4 +255,147 @@ class RedisCounterTest < Test::Unit::TestCase
     assert_equal '123', driver.instance.redis.get("item_sum_count:200"), "it should be ignore when count_value_key is not number"
   end
 
+  def test_write_without_last
+    conf = %[
+      db_number 1
+      <pattern>
+        match_status ^2[0-9]{2}$
+        match_url ^https
+        count_key a
+      </pattern>
+      <pattern>
+        count_key b
+        count_value 2
+      </pattern>
+    ]
+
+    driver = create_driver conf
+    driver.emit({"status" => "200", "url" => "https://foo.com"})
+    driver.run
+    assert_equal '1', driver.instance.redis.get("a")
+    assert_equal '2', driver.instance.redis.get("b")
+
+    driver = create_driver conf
+    driver.emit({"status" => "404", "url" => "https://foo.com/404"})
+    driver.run
+    assert_equal '1', driver.instance.redis.get("a")
+    assert_equal '4', driver.instance.redis.get("b")
+  end
+
+  def test_write_with_last
+    conf = %[
+      db_number 1
+      <pattern>
+        match_status ^2[0-9]{2}$
+        match_url ^https
+        count_key a
+        last true
+      </pattern>
+      <pattern>
+        count_key b
+        count_value 2
+      </pattern>
+    ]
+
+    driver = create_driver conf
+    driver.emit({"status" => "200", "url" => "https://foo.com"})
+    driver.run
+    assert_equal '1', driver.instance.redis.get("a")
+    assert_nil driver.instance.redis.get("b")
+
+    driver = create_driver conf
+    driver.emit({"status" => "404", "url" => "https://foo.com/404"})
+    driver.run
+    assert_equal '1', driver.instance.redis.get("a")
+    assert_equal '2', driver.instance.redis.get("b")
+  end
+
+  def test_write_with_required_keys
+    conf = %[
+      db_number 1
+      <pattern>
+        required_keys x
+        match_status ^2[0-9]{2}$
+        match_url ^https
+        count_key a
+      </pattern>
+      <pattern>
+        required_keys x,y
+        match_status ^2[0-9]{2}$
+        match_url ^https
+        count_key b
+      </pattern>
+    ]
+
+    driver = create_driver conf
+    driver.emit({"status" => "200", "url" => "https://foo.com", "x" => "foo"})
+    driver.run
+    assert_equal '1', driver.instance.redis.get("a")
+    assert_nil driver.instance.redis.get("b")
+
+    driver = create_driver conf
+    driver.emit({"status" => "200", "url" => "https://foo.com", "y" => "bar"})
+    driver.run
+    assert_equal '1', driver.instance.redis.get("a")
+    assert_nil driver.instance.redis.get("b")
+
+    driver = create_driver conf
+    driver.emit({"status" => "200", "url" => "https://foo.com", "x" => "foo", "y" => "bar"})
+    driver.run
+    assert_equal '2', driver.instance.redis.get("a")
+    assert_equal '1', driver.instance.redis.get("b")
+  end
+
+  def test_write_with_float_value
+    conf = %[
+      db_number 1
+      <pattern>
+        match_status ^2[0-9]{2}$
+        match_url ^https
+        count_key a
+        count_value_key x
+      </pattern>
+    ]
+
+    driver = create_driver conf
+    driver.emit({"status" => "200", "url" => "https://foo.com", "x" => 5.0})
+    driver.run
+    assert_equal '5', driver.instance.redis.get("a")
+
+    driver = create_driver conf
+    driver.emit({"status" => "200", "url" => "https://foo.com", "x" => 6.78})
+    driver.run
+    assert_equal '11.78', driver.instance.redis.get("a")
+  end
+
+  def test_configure_list_value_format
+    driver = create_driver %[
+      <pattern>
+        count_key a
+        list_value_format %_{prefix}-foo-%Y%m%d%H%M%S-%_{type}-%_{customer_id}
+        utc
+      </pattern>
+    ]
+    utc_time = Time.parse('2012-06-21 12:12:45 +0900').to_i
+    record = {'prefix' => 'pre', 'type' => 'bar', 'customer_id' => 321}
+    assert_equal 'pre-foo-20120621031245-bar-321', driver.instance.patterns[0].get_list_value(utc_time, record)
+  end
+
+  def test_write_with_list_value_format
+    conf = %[
+      <pattern>
+        count_key a
+        list_value_format %_{prefix}-foo-%Y%m%d%H%M%S-%_{type}-%_{customer_id}
+        utc
+      </pattern>
+    ]
+
+    driver = create_driver conf
+    driver.emit({'prefix' => 'pre1', 'type' => 'bar', 'customer_id' => 321}, Time.gm(2013, 11, 3, 12, 34, 56))
+    driver.emit({'prefix' => 'pre2', 'type' => 'foo', 'customer_id' => 654}, Time.gm(2013, 11, 3, 19, 20, 21))
+    driver.run
+    assert_equal 'pre2-foo-20131103192021-foo-654', driver.instance.redis.lpop('a')
+    assert_equal 'pre1-foo-20131103123456-bar-321', driver.instance.redis.lpop('a')
+    assert_nil driver.instance.redis.lpop('a')
+  end
 end
