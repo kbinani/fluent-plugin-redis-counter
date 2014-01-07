@@ -1,3 +1,8 @@
+## 0.1.0
+* support hash, sorted set type
+
+######################################################################
+## fluent-plugin-redis-counter
 ## 0.3.2
 * add password support for Redis connection.
 

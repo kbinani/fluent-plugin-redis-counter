@@ -1,12 +1,12 @@
-# Redis counter plugin for fluent [![Build Status](https://secure.travis-ci.org/kbinani/fluent-plugin-redis-counter.png)](http://travis-ci.org/kbinani/fluent-plugin-redis-counter)
+# Redis multi-type counter plugin for fluent [![Build Status](https://secure.travis-ci.org/heartsavior/fluent-plugin-redis-multi-type-counter.png)](http://travis-ci.org/heartsavior/fluent-plugin-redis-multi-type-counter)
 
-fluent-plugin-redis-counter is a fluent plugin to count-up/down redis keys.
+fluent-plugin-redis-multi-type-counter is a fluent plugin to count-up/down redis keys, hash, sorted set.
 
 # Installation
 
-fluent-plugin-redis-counter is hosted by [RubyGems.org](https://rubygems.org/).
+fluent-plugin-redis-multi-type-counter is hosted by [RubyGems.org](https://rubygems.org/).
 
-    $fluent-gem install fluent-plugin-redis-counter
+    $fluent-gem install fluent-plugin-redis-multi-type-counter
 
 # Configuration
 
@@ -111,7 +111,8 @@ run commands for test:
     "1"
 
 # Copyright
-- Copyright © 2012 Buntaro Okada
+- Copyright © 2014      Jungtaek Lim
+- Copyright © 2012-2014 Buntaro Okada
 - Copyright © 2011-2012 Yuki Nishijima
 
 # License
