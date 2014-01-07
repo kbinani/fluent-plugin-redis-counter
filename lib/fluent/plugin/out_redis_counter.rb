@@ -56,22 +56,62 @@ module Fluent
             @patterns.select { |pattern|
               pattern.is_match?(record)
             }.each{ |pattern|
-              table[pattern.get_count_key(time, record)] += pattern.get_count_value(record)
+              count_key = pattern.get_count_key(time, record)
+              count_hash_key = pattern.get_count_hash_key(record)
+              count_zset_key = pattern.get_count_zset_key(record)
+
+              key = RecordKey.new(count_key, count_hash_key, count_zset_key)
+              table[key] += pattern.get_count_value(record)
             }
           }
         rescue EOFError
           # EOFError always occured when reached end of chunk.
         end
       }
+
       table.each_pair.select { |key, value|
         value != 0
       }.each_slice(@max_pipelining) { |items|
         @redis.pipelined do
           items.each do |key, value|
-            @redis.incrby(key, value)
+            if key.count_hash_key != nil
+              @redis.hincrby(key.count_key, key.count_hash_key, value)
+            elsif key.count_zset_key != nil
+              @redis.zincrby(key.count_key, value, key.count_zset_key)
+            else
+              @redis.incrby(key.count_key, value)
+            end
           end
         end
       }
+    end
+
+    class RecordKey
+      attr_reader :count_key, :count_hash_key, :count_zset_key
+
+      def initialize(count_key, count_hash_key, count_zset_key)
+        @count_key = count_key
+        @count_hash_key = count_hash_key
+        @count_zset_key = count_zset_key
+      end
+
+      def hash
+        hash_key = ""
+
+        keys = [@count_key, @count_hash_key, @count_zset_key]
+        keys.select { |key| 
+          key != nil
+        }.each { |key|
+          hash_key += ("@@@@" + key)
+        }
+
+        hash_key.hash
+      end
+
+      def eql?(other)
+        return @count_key.eql?(other.count_key) && @count_hash_key.eql?(other.count_hash_key) && 
+          @count_zset_key.eql?(other.count_zset_key)
+      end
     end
 
     class RedisCounterException < Exception
@@ -114,7 +154,25 @@ module Fluent
             is_localtime = false
           end
           @count_key_format = [conf_element['count_key_format'], is_localtime]
-          @record_value_formatter = RecordValueFormatter.new(@count_key_format[0])
+          @record_formatter_for_count_key = RecordValueFormatter.new(@count_key_format[0])
+        end
+
+        if conf_element.has_key?('count_hash_key_format') && conf_element.has_key?('count_zset_key_format')
+          raise RedisCounterException, 'both "count_hash_key_format" "count_zset_key_format" are specified.'
+        end
+
+        if conf_element.has_key?('count_hash_key_format')
+          @count_hash_key_format = conf_element['count_hash_key_format']
+          @record_formatter_for_count_hash_key = RecordValueFormatter.new(@count_hash_key_format)
+        else
+          @count_hash_key_format = nil
+        end
+
+        if conf_element.has_key?('count_zset_key_format')
+          @count_zset_key_format = conf_element['count_zset_key_format']
+          @record_formatter_for_count_zset_key = RecordValueFormatter.new(@count_zset_key_format)
+        else
+          @count_zset_key_format = nil
         end
 
         if conf_element.has_key?('count_value_key')
@@ -152,9 +210,25 @@ module Fluent
         if @count_key_format == nil
           @count_key
         else
-          count_key = @record_value_formatter.key(record)
+          count_key = @record_formatter_for_count_key.key(record)
           formatter = TimeFormatter.new(count_key, @count_key_format[1])
           formatter.format(time)
+        end
+      end
+
+      def get_count_hash_key(record)
+        if @count_hash_key_format == nil
+          return nil
+        else
+          return @record_formatter_for_count_hash_key.key(record)
+        end
+      end
+
+      def get_count_zset_key(record)
+        if @count_zset_key_format == nil
+          return nil
+        else
+          return @record_formatter_for_count_zset_key.key(record)
         end
       end
 

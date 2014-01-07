@@ -1,12 +1,12 @@
-# Redis counter plugin for fluent [![Build Status](https://secure.travis-ci.org/kbinani/fluent-plugin-redis-counter.png)](http://travis-ci.org/kbinani/fluent-plugin-redis-counter)
+# Redis multi-type counter plugin for fluent [![Build Status](https://secure.travis-ci.org/heartsavior/fluent-plugin-redis-multi-type-counter.png)](http://travis-ci.org/heartsavior/fluent-plugin-redis-multi-type-counter)
 
-fluent-plugin-redis-counter is a fluent plugin to count-up/down redis keys.
+fluent-plugin-redis-multi-type-counter is a fluent plugin to count-up/down redis keys, hash, sorted set.
 
 # Installation
 
-fluent-plugin-redis-counter is hosted by [RubyGems.org](https://rubygems.org/).
+fluent-plugin-redis-multi-type-counter is hosted by [RubyGems.org](https://rubygems.org/).
 
-    $fluent-gem install fluent-plugin-redis-counter
+    $fluent-gem install fluent-plugin-redis-multi-type-counter
 
 # Configuration
 
@@ -49,6 +49,24 @@ fluent-plugin-redis-counter is hosted by [RubyGems.org](https://rubygems.org/).
         match_status ^2[0-9][0-9]$
         count_key_format customer:%_{customer_id}:status2xx-%Y-%m-%d
       </pattern>
+
+      # you can also sum up key in hash, by configuring count_hash_key_format
+      # syntax is same to count_key_format
+      # for example, {"custom_id": 123, "date": "20131219" ...}.
+      # HINCRBY item_count:123 20131219 1
+      <pattern>
+        count_key_format item_count:%_{item_id}
+        count_hash_key_format %_{date}
+      <pattern>
+
+      # you can also sum up key in sorted set(zset), by configuring count_zset_key_format
+      # syntax and usage is same to count_hash_key_format
+      # for example, {"custom_id": 123, "date": "20131219" ...}.
+      # ZINCRBY item_count:123 1 20131219
+      <pattern>
+        count_key_format item_count:%_{item_id}
+        count_zset_key_format %_{date}
+      <pattern>
 
       # you can also sum up specified key with count_value_key option.
       # for example, {"count": 321, "customer_id": 123 ... }.
@@ -93,7 +111,8 @@ run commands for test:
     "1"
 
 # Copyright
-- Copyright © 2012 Buntaro Okada
+- Copyright © 2014      Jungtaek Lim
+- Copyright © 2012-2014 Buntaro Okada
 - Copyright © 2011-2012 Yuki Nishijima
 
 # License
